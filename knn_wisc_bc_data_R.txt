@@ -1,0 +1,39 @@
+#데이터 불러오기
+raw_data<-read.csv('knn_wisc_bc_data.csv')
+nrow(raw_data)
+ncol(raw_data)
+#식별번호(id) 제거
+raw_data <- raw_data[-1]
+#기술 통계량 확인
+summary(raw_data[c("radius_mean","area_mean","smoothness_mean")])
+#범위 표준화 정의
+standardize <- function(x) {
+   return ((x-min(x))/(max(x)-min(x)))
+ }
+
+#30개 수치형 변수 범위 표준화
+st_data <- as.data.frame(lapply(raw_data[2:31], standardize))
+
+#범위 표준화 확인
+summary(st_data$area_mean)
+
+#훈련용 데이터 만들기
+library(caret)
+sample <- createDataPartition(raw_data$diagnosis, p=0.8)
+st_train <- st_data[sample$Resample1,] #훈련용 예측변수
+st_train_label <- raw_data$diagnosis[sample$Resample1] #훈련용 종속변수
+ 
+#테스트용 데이터 만들기
+st_test <- st_data[-sample$Resample1,] #테스트용 예측변수
+st_test_label <- raw_data$diagnosis[-sample$Resample1] #테스트용 종속변수
+#knn 판별분석 모델 만들기(k=21)
+library(class)
+test_pred <- knn(train=st_train, test=st_test, cl=st_train_label, k=21)
+test_pred #테스트 용 데이터의
+#혼동행렬(confusion) 계산
+ (tt <- table(st_test_label, test_pred))
+           
+sum(tt[row(tt) == col(tt)])/sum(tt) #정분류율
+
+1-sum(tt[row(tt) == col(tt)])/sum(tt) #오분류율
+
