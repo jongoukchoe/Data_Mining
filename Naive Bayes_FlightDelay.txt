@@ -1,0 +1,51 @@
+#FlightDelays 데이터 불러오기 및 확인하기
+raw_data <- read.csv("FlightDelays.csv")
+ncol(raw_data) #du
+str(raw_data)
+#요인 벡터형으로 자료형 변환
+raw_data$DAY_WEEK <- factor(raw_data$DAY_WEEK)
+raw_data$DEP_TIME <- factor(raw_data$DEP_TIME)
+raw_data$CRS_DEP_TIME <- factor(round(raw_data$CRS_DEP_TIME/100)) #시간으로 반올림
+#예측변수 및 종속변수 선별
+selected_var <- c(10, 1, 8, 4, 2, 13)
+#학습 및 테스트 데이터 분리하기
+library(caret)
+set.seed(100) #랜덤난수 초기값 고정
+trainIndex=createDataPartition(raw_data$Flight.Status, p=0.6)$Resample1
+train=raw_data[trainIndex, selected_var] #학습용 데이터 60%
+test=raw_data[-trainIndex, selected_var] #테스트용 데이터 40%
+nrow(train);nrow(test);
+#전체 데이터의 Flight.Status 속성 비율
+print(table(raw_data$Flight.Status))
+#학습데이터의 Flight.Status 속성 비율
+print(table(train$Flight.Status))
+
+#나이브 베이즈 분류기 학습시키기
+library(e1071) #패키기 불러오기
+delay_nb <- naiveBayes(Flight.Status ~., data=train)
+delay_nb
+#테스트 데이터 예측 분류값
+test_prob_result <- predict(delay_nb, newdata=test, type="raw") #사후확률값
+test_class_result <- predict(delay_nb, newdata=test) #예측 분류 결과
+test_result <- data.frame(actual=test$Flight.Status, predicted=test_class_result,
+                           pred_prob=test_prob_result) #결과 합치기
+head(test_result,5)
+
+#혼동행렬 구하기
+library(caret)
+ 
+#훈련 데이터
+traing_pred_class <- predict(delay_nb, newdata=train)
+confusionMatrix(traing_pred_class, train$Flight.Status)
+             
+#테스트 데이터
+test_pred_class <- predict(delay_nb, newdata=test)
+confusionMatrix(test_pred_class, test$Flight.Status)
+
+#향상차트 그리기
+library(gains)
+gain <- gains(ifelse(test$Flight.Status=="delayed", 1, 0), 
+               test_prob_result[,1], groups=100)
+plot(c(0, gain$cume.pct.of.total*sum(test$Flight.Status=="delayed"))~c(0, gain$cume.obs),
+      xlab="사례수", ylab="누적값", type='l')
+ lines(c(0, sum(test$Flight.Status=="delayed"))~c(0,dim(test)[1]), lty=2)
